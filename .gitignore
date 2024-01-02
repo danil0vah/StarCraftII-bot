@@ -1,0 +1,6 @@
+#repositories
+/bot
+/__pycache__
+
+#files
+content.ipynb
