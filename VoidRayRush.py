@@ -14,7 +14,7 @@ import time
 
 HEADLESS = True
 
-class SentdeBot(BotAI):
+class VoidRayRushBot(BotAI):
     def __init__(self):
         self.ITERATIONS_PER_MINUTE = 165
         self.MAX_WORKERS = 60
@@ -126,15 +126,21 @@ class SentdeBot(BotAI):
         vespene_ratio = self.vespene/ 1500
         if vespene_ratio > 1.0:
             vespene_ratio = 1.0
-        population_ratio = self.supply_left / self.supply_cap
-        if population_ratio > 1.0:
-            population_ratio = 1.0
+        if self.supply_cap !=0:
+            population_ratio = self.supply_left / self.supply_cap
+            if population_ratio > 1.0:
+                population_ratio = 1.0
+        else:
+            population_ratio = 0
 
         plausible_supply = self.supply_cap / 200.0
 
-        military_weight = len(self.units(UnitTypeId.VOIDRAY)) / (self.supply_cap-self.supply_left)
-        if military_weight > 1.0:
-            military_weight = 1.0
+        if self.supply_cap-self.supply_left != 0:
+            military_weight = len(self.units(UnitTypeId.VOIDRAY)) / (self.supply_cap-self.supply_left)
+            if military_weight > 1.0:
+                military_weight = 1.0
+        else:
+            military_weight = 0
 
         cv2.line(img=map_data, pt1=(0, 19), pt2=(int(max_line*military_weight), 19), color=(250,250,200), thickness=3)
         cv2.line(img=map_data, pt1=(0, 15), pt2=(int(max_line*plausible_supply), 15), color=(220,220,200), thickness=3)
@@ -152,23 +158,25 @@ class SentdeBot(BotAI):
             cv2.waitKey(1)
 
     async def build_workers(self):
-        nexus = self.townhalls.ready.random
-        if self.workers.amount < self.townhalls.amount * 18:
-            if self.workers.amount < self.MAX_WORKERS:
-                for nexus in self.townhalls.ready.idle:
-                    if self.can_afford(UnitTypeId.PROBE):
-                        nexus.train(UnitTypeId.PROBE)
+        if self.townhalls.ready:
+            nexus = self.townhalls.ready.random
+            if self.workers.amount < self.townhalls.amount * 18:
+                if self.workers.amount < self.MAX_WORKERS:
+                    for nexus in self.townhalls.ready.idle:
+                        if self.can_afford(UnitTypeId.PROBE):
+                            nexus.train(UnitTypeId.PROBE)
 
     async def build_pylons(self):
-        nexus = self.townhalls.ready.random
-        if self.supply_left < 5 and self.already_pending(UnitTypeId.PYLON) == 0:
-            if self.can_afford(UnitTypeId.PYLON):
-                await self.build(UnitTypeId.PYLON, near=nexus)
+        if self.townhalls.ready:
+            nexus = self.townhalls.ready.random
+            if self.supply_left < 5 and self.already_pending(UnitTypeId.PYLON) == 0:
+                if self.can_afford(UnitTypeId.PYLON):
+                    await self.build(UnitTypeId.PYLON, near=nexus)
 
     async def build_assimilators(self):
         for nexus in self.townhalls.ready:
-            vespene = self.vespene_geyser.closer_than(15, nexus)
-            for vespene in vespene:
+            vespenes = self.vespene_geyser.closer_than(15, nexus)
+            for vespene in vespenes:
                 if not self.can_afford(UnitTypeId.ASSIMILATOR):
                     break
                 worker = self.select_build_worker(vespene.position)
@@ -180,8 +188,10 @@ class SentdeBot(BotAI):
 
 
     async def expand(self):
-        if self.units(UnitTypeId.NEXUS).amount * 1.5 < (self.iteration / self.ITERATIONS_PER_MINUTE) and self.can_afford(UnitTypeId.NEXUS):
-            await self.expand_now()
+        if self.get_next_expansion:
+            if self.units(UnitTypeId.NEXUS).amount * 1.5 < (self.iteration / self.ITERATIONS_PER_MINUTE) and self.can_afford(UnitTypeId.NEXUS):
+                if self.already_pending(UnitTypeId.NEXUS) == 0:
+                    await self.expand_now()
 
     async def offensive_force_buildings(self):
         if self.structures(UnitTypeId.PYLON).ready.exists:
@@ -196,11 +206,12 @@ class SentdeBot(BotAI):
                     await self.build(UnitTypeId.GATEWAY, near=pylon)
 
             if len(self.structures(UnitTypeId.ROBOTICSFACILITY)) < 1:
-                worker = self.workers.random
-                abilities = await self.get_available_abilities(worker)
-                if self.can_afford(UnitTypeId.ROBOTICSFACILITY) and self.already_pending(UnitTypeId.ROBOTICSFACILITY) == 0:
-                    if AbilityId.PROTOSSBUILD_ROBOTICSFACILITY in abilities:
-                        await self.build(UnitTypeId.ROBOTICSFACILITY, near=pylon)
+                if self.workers:
+                    worker = self.workers.random
+                    abilities = await self.get_available_abilities(worker)
+                    if self.can_afford(UnitTypeId.ROBOTICSFACILITY) and self.already_pending(UnitTypeId.ROBOTICSFACILITY) == 0:
+                        if AbilityId.PROTOSSBUILD_ROBOTICSFACILITY in abilities:
+                            await self.build(UnitTypeId.ROBOTICSFACILITY, near=pylon)
 
             if self.structures(UnitTypeId.CYBERNETICSCORE).ready.exists:
                 if len(self.structures(UnitTypeId.STARGATE)) < (self.iteration / self.ITERATIONS_PER_MINUTE):
@@ -264,8 +275,8 @@ class SentdeBot(BotAI):
                         unemp.attack(random.choice(self.enemy_units))
 
 
-
-run_game(maps.get("AbyssalReefLE"), [
-    Bot(Race.Protoss, SentdeBot()),
-    Computer(Race.Terran, Difficulty.Easy)
-    ], realtime=False)
+if __name__=='__main__':
+    run_game(maps.get("AbyssalReefLE"), [
+        Bot(Race.Protoss, VoidRayRushBot()),
+        Computer(Race.Terran, Difficulty.Hard)
+        ], realtime=False)
