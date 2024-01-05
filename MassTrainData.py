@@ -11,13 +11,9 @@ def run_match(map_name, bot1, bot2):
     run_game(maps.get(map_name), [bot1, bot2], realtime=False)
 
 if __name__ == "__main__":
-    # Получить количество потоков процессора
-    cores = multiprocessing.cpu_count() / 2
 
-    # Создать пул потоков
-    pool = multiprocessing.Pool(cores)
+    cores = multiprocessing.cpu_count()
 
-    # Создать список матчей
     matches = []
     for _ in range(cores):
         matches.append((
@@ -26,15 +22,14 @@ if __name__ == "__main__":
             Computer(Race.Terran, Difficulty.Hard)
         ))
 
-    # Запустить матчи в пуле
-    results = []
+    processes = []
     while len(os.listdir("stuff/train_data")) < 15:
         for match in matches:
-            result = pool.map_async(run_match, [match])
-            results.append(result)
+            process = multiprocessing.Process(target=run_match, args=match)
+            process.start()
+            processes.append(process)
 
-        # Подождать завершения всех матчей
-        for result in results:
-            result.get()
+        for process in processes:
+            process.join()
     
     
