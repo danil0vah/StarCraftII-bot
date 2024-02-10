@@ -1,5 +1,5 @@
 burnysc2==6.5.0
 keras==2.13.1
-numpy==1.24.3
+numpy
 opencv-python==4.8.1.78
-@tensorflow[and-cuda]==2.13.1
+#@tensorflow[and-cuda]==2.13.1
